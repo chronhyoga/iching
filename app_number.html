@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>易經起卦 — 數字版</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold:  #C8A96E;
+    --dark:  #1A1A1A;
+    --panel: #242424;
+    --card:  #2E2E2E;
+    --dim:   #888888;
+    --white: #EFEFEF;
+    --red:   #E06060;
+    --green: #82C882;
+    --blue:  #7090C0;
+    --sep:   #3A3A3A;
+  }
+
+  body {
+    background: var(--dark);
+    color: var(--white);
+    font-family: "Songti SC", "Source Han Serif TC", "Noto Serif CJK TC", serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── 標題列 ── */
+  header {
+    background: var(--panel);
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 22px; color: var(--gold); letter-spacing: .2em; }
+  #clock { font-size: 13px; color: var(--dim); }
+
+  /* ── 輸入區 ── */
+  .inp-panel {
+    background: var(--panel);
+    border-radius: 12px;
+    margin: 16px 20px 0;
+    padding: 10px 16px 12px;
+    flex-shrink: 0;
+  }
+  .inp-panel label { font-size: 13px; color: var(--dim); display: block; margin-bottom: 6px; }
+  .inp-row { display: flex; align-items: center; gap: 12px; }
+  #numInput {
+    width: 160px; height: 56px;
+    background: var(--card);
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    color: var(--white);
+    font-family: inherit;
+    font-size: 28px;
+    text-align: center;
+    outline: none;
+  }
+  #numInput::placeholder { color: var(--dim); }
+  #numInput:focus { border-color: #e0c080; }
+  #goBtn {
+    height: 56px; padding: 0 24px;
+    background: var(--gold);
+    border: none; border-radius: 8px;
+    color: var(--dark);
+    font-family: inherit;
+    font-size: 16px; font-weight: bold;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #goBtn:hover { background: #A8893E; }
+  #errMsg { font-size: 13px; color: var(--red); }
+
+  /* ── 捲動結果區 ── */
+  #results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px;
+  }
+
+  /* ── 單筆結果卡 ── */
+  .result-card {
+    background: var(--panel);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  /* 推算說明列 */
+  .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 14px 20px 10px;
+  }
+  .num-big {
+    font-family: "Menlo", monospace;
+    font-size: 48px; font-weight: bold;
+    color: var(--gold);
+    min-width: 80px;
+    line-height: 1;
+    padding-top: 4px;
+  }
+  .info-lines { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+  .info-lines .dim  { color: var(--dim); }
+  .info-lines .gold { color: var(--gold); }
+  .info-lines .wht  { color: var(--white); }
+
+  .sep-line { height: 1px; background: var(--sep); margin: 0 20px; }
+
+  /* ── 卦象雙欄 ── */
+  .hex-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    padding: 12px 20px;
+    align-items: start;
+  }
+
+  /* 變爻說明 */
+  .mid-col {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 0 10px;
+    gap: 6px;
+    min-width: 72px;
+    padding-top: 80px;
+  }
+  .mid-col .arrow { font-size: 26px; color: var(--gold); }
+  .mid-col .calc  { font-size: 11px; color: var(--dim); text-align: center; line-height: 1.5; }
+  .mid-col .yaopos { font-size: 13px; color: var(--white); }
+  .mid-col .yaotype{ font-size: 13px; color: var(--gold); }
+
+  /* 單張卦牌 */
+  .hex-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 10px 10px 0;
+    display: flex; flex-direction: column;
+    align-items: center;
+  }
+  .hex-card .card-title { font-size: 13px; color: var(--dim); margin-bottom: 2px; }
+  .hex-card .card-sym   { font-size: 36px; color: var(--gold); line-height: 1.1; }
+  .hex-card .card-no    { font-size: 13px; color: var(--dim); margin-bottom: 2px; }
+  .hex-card .card-name  { font-size: 17px; font-weight: bold; color: var(--white); margin-bottom: 8px; }
+
+  /* 爻行 */
+  .yao-row {
+    display: flex; align-items: center;
+    width: 100%;
+    padding: 2px 4px;
+    gap: 4px;
+  }
+  .yao-line {
+    font-family: "Menlo", monospace;
+    font-size: 14px;
+    width: 130px;
+    flex-shrink: 0;
+    letter-spacing: .05em;
+  }
+  .yao-label {
+    font-family: "Menlo", monospace;
+    font-size: 11px;
+    width: 52px;
+    flex-shrink: 0;
+  }
+  .yao-pred {
+    font-size: 13px; font-weight: bold;
+    width: 22px;
+  }
+
+  /* 評分列 */
+  .score-sep { height: 1px; background: var(--sep); margin: 6px 8px 4px; width: calc(100% - 16px); }
+  .score-bar { font-size: 12px; padding-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>易　經　起　卦　數字版</h1>
+  <div id="clock"></div>
+</header>
+
+<div class="inp-panel">
+  <label>輸入正整數</label>
+  <div class="inp-row">
+    <input id="numInput" type="number" min="1" placeholder="數字" autocomplete="off">
+    <button id="goBtn">起卦</button>
+    <span id="errMsg"></span>
+  </div>
+</div>
+
+<div id="results"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  資料表
+// ════════════════════════════════════════════
+const BAGUA = {
+  1:["乾","☰"], 2:["兌","☱"], 3:["離","☲"], 4:["震","☳"],
+  5:["巽","☴"], 6:["坎","☵"], 7:["艮","☶"], 8:["坤","☷"]
+};
+
+const DIZHI = {
+  1:["子","23:00–01:00"], 2:["丑","01:00–03:00"], 3:["寅","03:00–05:00"],
+  4:["卯","05:00–07:00"], 5:["辰","07:00–09:00"], 6:["巳","09:00–11:00"],
+  7:["午","11:00–13:00"], 8:["未","13:00–15:00"], 9:["申","15:00–17:00"],
+ 10:["酉","17:00–19:00"],11:["戌","19:00–21:00"],12:["亥","21:00–23:00"]
+};
+
+// HEXAGRAMS[(上卦號, 下卦號)] = [序號, 卦名]  ← 用 "u,l" 字串做 key
+const HEXAGRAMS = {
+  "1,1":[1,"乾為天"],   "1,2":[10,"天澤履"],  "1,3":[13,"天火同人"],"1,4":[25,"天雷无妄"],
+  "1,5":[44,"天風姤"],  "1,6":[6,"天水訟"],   "1,7":[33,"天山遯"],  "1,8":[12,"天地否"],
+  "2,1":[43,"澤天夬"],  "2,2":[58,"兌為澤"],  "2,3":[49,"澤火革"],  "2,4":[17,"澤雷隨"],
+  "2,5":[28,"澤風大過"],"2,6":[47,"澤水困"],  "2,7":[31,"澤山咸"],  "2,8":[45,"澤地萃"],
+  "3,1":[14,"火天大有"],"3,2":[38,"火澤睽"],  "3,3":[30,"離為火"],  "3,4":[21,"火雷噬嗑"],
+  "3,5":[50,"火風鼎"],  "3,6":[64,"火水未濟"],"3,7":[56,"火山旅"],  "3,8":[35,"火地晉"],
+  "4,1":[34,"雷天大壯"],"4,2":[54,"雷澤歸妹"],"4,3":[55,"雷火豐"],  "4,4":[51,"震為雷"],
+  "4,5":[32,"雷風恆"],  "4,6":[40,"雷水解"],  "4,7":[62,"雷山小過"],"4,8":[16,"雷地豫"],
+  "5,1":[9,"風天小畜"], "5,2":[61,"風澤中孚"],"5,3":[37,"風火家人"],"5,4":[42,"風雷益"],
+  "5,5":[57,"巽為風"],  "5,6":[59,"風水渙"],  "5,7":[53,"風山漸"],  "5,8":[20,"風地觀"],
+  "6,1":[5,"水天需"],   "6,2":[60,"水澤節"],  "6,3":[63,"水火既濟"],"6,4":[3,"水雷屯"],
+  "6,5":[48,"水風井"],  "6,6":[29,"坎為水"],  "6,7":[39,"水山蹇"],  "6,8":[8,"水地比"],
+  "7,1":[26,"山天大畜"],"7,2":[41,"山澤損"],  "7,3":[22,"山火賁"],  "7,4":[27,"山雷頤"],
+  "7,5":[18,"山風蠱"],  "7,6":[4,"山水蒙"],   "7,7":[52,"艮為山"],  "7,8":[23,"山地剝"],
+  "8,1":[11,"地天泰"],  "8,2":[19,"地澤臨"],  "8,3":[36,"地火明夷"],"8,4":[24,"地雷復"],
+  "8,5":[46,"地風升"],  "8,6":[7,"地水師"],   "8,7":[15,"地山謙"],  "8,8":[2,"坤為地"]
+};
+
+// TRIGRAM_BITS[num] = [bit0,bit1,bit2]  (index0=第1爻底, index2=第3爻頂)
+const TRIGRAM_BITS = {
+  1:[1,1,1], 2:[1,1,0], 3:[1,0,1], 4:[1,0,0],
+  5:[0,1,1], 6:[0,1,0], 7:[0,0,1], 8:[0,0,0]
+};
+// BITS_TO_TRIGRAM["b0,b1,b2"] → num
+const BITS_TO_TRIGRAM = {};
+for (const [k,v] of Object.entries(TRIGRAM_BITS))
+  BITS_TO_TRIGRAM[v.join(",")] = parseInt(k);
+
+// HEXAGRAM_LOOKUP[(inner,outer)] = [pos1..6]   1=吉 0=中 -1=凶
+// inner=下卦名, outer=上卦名
+const HEXAGRAM_LOOKUP = {
+  "乾,乾":[ 0, 0, 0, 0, 0, 0], "乾,坤":[ 1, 1, 0, 0, 1, 0],
+  "乾,震":[-1, 0, 1, 1, 1, 1], "乾,巽":[ 0, 1,-1, 1,-1, 1],
+  "乾,坎":[ 1,-1, 1, 1, 1, 0], "乾,離":[ 0, 0, 0, 1, 0, 0],
+  "乾,艮":[ 1, 0,-1, 0, 1, 0], "乾,兌":[ 1, 0,-1,-1, 0, 0],
+  "坤,乾":[ 1, 0, 0, 0, 1, 0], "坤,坤":[ 0, 1, 0, 0, 1, 0],
+  "坤,震":[ 1, 1, 1, 1, 1, 0], "坤,巽":[ 1, 1, 1, 0, 1, 1],
+  "坤,坎":[-1, 1,-1, 0,-1, 0], "坤,離":[ 0, 1, 0, 0, 0, 0],
+  "坤,艮":[ 1, 1, 0, 0, 0,-1], "坤,兌":[ 1, 1, 0, 1, 1, 0],
+  "震,乾":[ 0, 0, 1, 1, 1, 0], "震,坤":[-1,-1, 0,-1, 1, 0],
+  "震,震":[ 1, 0,-1, 0, 0, 1], "震,巽":[ 0,-1, 0, 1, 1, 1],
+  "震,坎":[ 0, 1, 0, 0, 1, 0], "震,離":[ 0, 0, 1, 0, 1, 0],
+  "震,艮":[-1,-1,-1, 1, 1, 1], "震,兌":[ 1, 0,-1, 0, 0, 0],
+  "巽,乾":[ 0, 0,-1, 0, 0,-1], "巽,坤":[ 0, 1, 0, 1, 1, 0],
+  "巽,震":[ 0, 0, 0, 1, 0, 0], "巽,巽":[ 1, 1,-1, 1,-1, 0],
+  "巽,坎":[ 0,-1,-1, 0, 0, 1], "巽,離":[ 0, 1,-1, 1, 0, 1],
+  "巽,艮":[ 1, 0, 0,-1, 1, 0], "巽,兌":[ 0, 1,-1, 1, 0,-1],
+  "坎,乾":[ 1, 1, 0, 0, 1, 1], "坎,坤":[ 1, 1, 0, 1, 1,-1],
+  "坎,震":[ 0, 0, 0, 0, 0, 1], "坎,巽":[ 0,-1, 0, 0, 1,-1],
+  "坎,坎":[-1, 0, 0, 0, 0,-1], "坎,離":[ 0, 0, 0, 0, 0,-1],
+  "坎,艮":[ 1, 0, 0, 1, 0, 0], "坎,兌":[ 0, 0, 0, 0, 0, 1],
+  "離,乾":[ 0, 0, 0, 0, 1, 1], "離,坤":[ 1, 1, 0,-1, 1, 1],
+  "離,震":[-1, 0,-1, 0, 0,-1], "離,巽":[ 1, 0, 0, 0, 0, 1],
+  "離,坎":[ 0, 1,-1, 1, 1, 0], "離,離":[ 0, 1,-1, 0, 1, 0],
+  "離,艮":[ 0, 0, 0, 1, 0,-1], "離,兌":[ 1, 1, 1,-1, 0, 1],
+  "艮,乾":[-1, 1,-1, 1, 0, 1], "艮,坤":[-1, 1,-1, 0, 0, 0],
+  "艮,震":[-1, 0,-1, 0, 0,-1], "艮,巽":[ 1, 0, 0, 0, 1, 0],
+  "艮,坎":[ 0, 1, 0, 0, 1, 1], "艮,離":[ 0, 1, 0, 1, 1,-1],
+  "艮,艮":[ 1,-1,-1, 0,-1,-1], "艮,兌":[-1, 0, 0, 0, 0,-1],
+  "兌,乾":[ 1, 1, 0, 0, 0,-1], "兌,坤":[ 0, 0, 0, 0, 0, 0],
+  "兌,震":[ 0, 1,-1, 0, 1, 1], "兌,巽":[ 1, 0, 0, 0, 0,-1],
+  "兌,坎":[ 1, 0, 0, 1, 0, 0], "兌,離":[ 0, 1, 0, 1, 1, 1],
+  "兌,艮":[ 1, 1,-1, 0, 1,-1], "兌,兌":[ 0, 1, 0, 0, 1,-1]
+};
+
+const PRED_LABEL = {1:"吉", 0:"中", "-1":"凶"};
+const PRED_COLOR = {1:"var(--green)", 0:"var(--gold)", "-1":"var(--red)"};
+const SCORE_LABEL = [[4,"大吉卦"],[2,"吉卦"],[0,"平卦"],[-2,"小凶卦"],[-99,"凶卦"]];
+
+// ════════════════════════════════════════════
+//  工具函式
+// ════════════════════════════════════════════
+function mod8(n) { const r = ((n % 8) + 8) % 8; return r === 0 ? 8 : r; }
+
+function getDizhi() {
+  const h = new Date().getHours();
+  let idx;
+  if (h === 23 || h === 0) idx = 1;
+  else idx = Math.floor((h + 1) / 2) + 1;
+  const [name, period] = DIZHI[idx];
+  return [idx, name, period];
+}
+
+function hexScoreLabel(positions) {
+  const total = positions.reduce((a,b)=>a+b, 0);
+  for (const [th, lbl] of SCORE_LABEL)
+    if (total >= th) return [total, lbl];
+  return [total, "凶卦"];
+}
+
+function scoreColor(score) {
+  return score > 0 ? "var(--green)" : score < 0 ? "var(--red)" : "var(--gold)";
+}
+
+// ════════════════════════════════════════════
+//  起卦邏輯
+// ════════════════════════════════════════════
+function computeNum(n) {
+  const total = n;
+  const upperNum = mod8(total);
+  const [upperName, upperSym] = BAGUA[upperNum];
+
+  const [dzIdx, dzName, dzPeriod] = getDizhi();
+  const dzMod = mod8(dzIdx);
+  const lowerNum = mod8(upperNum + dzMod);
+  const [lowerName, lowerSym] = BAGUA[lowerNum];
+
+  const [hexNo, hexName] = HEXAGRAMS[`${upperNum},${lowerNum}`];
+
+  const rawSum = total + dzIdx;
+  const yaoPos = rawSum % 6 || 6;
+
+  const allYao = [...TRIGRAM_BITS[lowerNum], ...TRIGRAM_BITS[upperNum]];
+  const originalYao = allYao[yaoPos - 1];
+  allYao[yaoPos - 1] = 1 - originalYao;
+
+  const zhiLowerNum = BITS_TO_TRIGRAM[allYao.slice(0,3).join(",")];
+  const zhiUpperNum = BITS_TO_TRIGRAM[allYao.slice(3,6).join(",")];
+  const [zhiHexNo, zhiHexName] = HEXAGRAMS[`${zhiUpperNum},${zhiLowerNum}`];
+  const [, zhiUpperSym] = BAGUA[zhiUpperNum];
+  const [, zhiLowerSym] = BAGUA[zhiLowerNum];
+
+  return {
+    number: n, total,
+    upperNum, upperName, upperSym,
+    dzIdx, dzName, dzPeriod, dzMod,
+    lowerNum, lowerName, lowerSym,
+    hexNo, hexName,
+    yaoPos, originalYao,
+    zhiHexNo, zhiHexName, zhiUpperSym, zhiLowerSym,
+    allYaoBefore: [...TRIGRAM_BITS[lowerNum], ...TRIGRAM_BITS[upperNum]],
+    allYaoAfter: allYao,
+    zhiLowerNum, zhiUpperNum
+  };
+}
+
+// ════════════════════════════════════════════
+//  UI 建構
+// ════════════════════════════════════════════
+function predVal(v) { return String(v); }  // key for PRED_LABEL/COLOR
+
+function buildYaoRow(sym, isYang, pos, isMark, predVal) {
+  const row = document.createElement("div");
+  row.className = "yao-row";
+
+  const lineSpan = document.createElement("span");
+  lineSpan.className = "yao-line";
+  lineSpan.textContent = isYang ? "────────" : "────  ────";
+  lineSpan.style.color = isMark ? "var(--red)" : (isYang ? "var(--gold)" : "var(--blue)");
+
+  const lblSpan = document.createElement("span");
+  lblSpan.className = "yao-label";
+  lblSpan.textContent = `第${pos}爻` + (isMark ? " ←" : "");
+  lblSpan.style.color = isMark ? "var(--red)" : "var(--dim)";
+
+  row.appendChild(lineSpan);
+  row.appendChild(lblSpan);
+
+  if (predVal !== null) {
+    const pSpan = document.createElement("span");
+    pSpan.className = "yao-pred";
+    const v = String(predVal);
+    pSpan.textContent = PRED_LABEL[v] ?? PRED_LABEL[predVal];
+    pSpan.style.color   = PRED_COLOR[v]  ?? PRED_COLOR[predVal];
+    row.appendChild(pSpan);
+  }
+  return row;
+}
+
+function buildHexCard(title, sym, no, name, bits, mark, yaoPred) {
+  const card = document.createElement("div");
+  card.className = "hex-card";
+
+  const t = (cls, txt) => { const el = document.createElement("div"); el.className = cls; el.textContent = txt; return el; };
+  card.appendChild(t("card-title", title));
+  card.appendChild(t("card-sym",   sym));
+  card.appendChild(t("card-no",    `第 ${String(no).padStart(2,"0")} 卦`));
+  card.appendChild(t("card-name",  name));
+
+  // 爻線：第6爻在頂（i=5 downto 0）
+  for (let i = 5; i >= 0; i--) {
+    const pos = i + 1;
+    const isMark = (mark != null) && (pos === mark);
+    const isYang = bits[i] === 1;
+    const pv = yaoPred ? yaoPred[i] : null;
+    card.appendChild(buildYaoRow(null, isYang, pos, isMark, pv));
+  }
+
+  if (yaoPred) {
+    const [score, scoreLbl] = hexScoreLabel(yaoPred);
+    const ji  = yaoPred.filter(v=>v===1).length;
+    const xng = yaoPred.filter(v=>v===-1).length;
+    const sep = document.createElement("div"); sep.className = "score-sep"; card.appendChild(sep);
+    const sb  = document.createElement("div"); sb.className = "score-bar";
+    sb.textContent = `${scoreLbl}　吉${ji} 中${6-ji-xng} 凶${xng}（${score>=0?"+"+score:score}）`;
+    sb.style.color = scoreColor(score);
+    sb.style.textAlign = "center";
+    card.appendChild(sb);
+  }
+  return card;
+}
+
+function renderResult(r) {
+  const benPred  = HEXAGRAM_LOOKUP[`${r.lowerName},${r.upperName}`] ?? null;
+  const zhiInner = BAGUA[r.zhiLowerNum][0];
+  const zhiOuter = BAGUA[r.zhiUpperNum][0];
+  const zhiPred  = HEXAGRAM_LOOKUP[`${zhiInner},${zhiOuter}`] ?? null;
+
+  const card = document.createElement("div");
+  card.className = "result-card";
+
+  // ── 推算說明 ──
+  const info = document.createElement("div");
+  info.className = "info-row";
+
+  const numBig = document.createElement("div");
+  numBig.className = "num-big";
+  numBig.textContent = r.number;
+
+  const lines = document.createElement("div");
+  lines.className = "info-lines";
+  const mkLine = (cls, txt) => { const s = document.createElement("span"); s.className=cls; s.textContent=txt; lines.appendChild(s); };
+  mkLine("dim",  `輸入數字　${r.number}`);
+  mkLine("gold", `${r.total} ÷ 8 餘 ${r.upperNum}　上卦 → ${r.upperSym} ${r.upperName}`);
+  mkLine("dim",  `時辰 ${r.dzName}（${r.dzPeriod}）編號 ${r.dzIdx}，÷ 8 餘 ${r.dzMod}　下卦 → ${r.lowerSym} ${r.lowerName}`);
+  mkLine("wht",  `（${r.total}＋${r.dzIdx}）÷ 6 餘 ${r.yaoPos}　→ 第${r.yaoPos}爻變`);
+
+  info.appendChild(numBig);
+  info.appendChild(lines);
+  card.appendChild(info);
+
+  const sep = document.createElement("div"); sep.className = "sep-line"; card.appendChild(sep);
+
+  // ── 卦象雙欄 ──
+  const hexRow = document.createElement("div");
+  hexRow.className = "hex-row";
+
+  hexRow.appendChild(buildHexCard(
+    "本  卦",
+    `${r.upperSym}${r.lowerSym}`,
+    r.hexNo, r.hexName,
+    r.allYaoBefore, r.yaoPos, benPred
+  ));
+
+  // 中間欄
+  const mid = document.createElement("div");
+  mid.className = "mid-col";
+  const yaoType = r.originalYao === 1 ? "陽爻" : "陰爻";
+  const yaoNew  = r.originalYao === 1 ? "陰爻" : "陽爻";
+  mid.innerHTML = `
+    <div class="arrow">→</div>
+    <div class="calc">(${r.total}+${r.dzIdx}) ÷ 6<br>餘 ${r.yaoPos}</div>
+    <div class="yaopos">第${r.yaoPos}爻</div>
+    <div class="yaotype">${yaoType}→${yaoNew}</div>
+  `;
+  hexRow.appendChild(mid);
+
+  hexRow.appendChild(buildHexCard(
+    "之  卦",
+    `${r.zhiUpperSym}${r.zhiLowerSym}`,
+    r.zhiHexNo, r.zhiHexName,
+    r.allYaoAfter, null, zhiPred
+  ));
+
+  card.appendChild(hexRow);
+  return card;
+}
+
+// ════════════════════════════════════════════
+//  事件 & 時鐘
+// ════════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  const [, dzName, dzPeriod] = getDizhi();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  const ss = String(now.getSeconds()).padStart(2,"0");
+  document.getElementById("clock").textContent = `${hh}:${mm}:${ss}　${dzName}時 ${dzPeriod}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function onQuery() {
+  const err = document.getElementById("errMsg");
+  const val = document.getElementById("numInput").value.trim();
+  err.textContent = "";
+
+  const n = parseInt(val, 10);
+  if (!val || isNaN(n) || n <= 0) {
+    err.textContent = "請輸入正整數";
+    return;
+  }
+
+  const results = document.getElementById("results");
+  results.innerHTML = "";
+  results.appendChild(renderResult(computeNum(n)));
+}
+
+document.getElementById("goBtn").addEventListener("click", onQuery);
+document.getElementById("numInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") onQuery();
+});
+</script>
+</body>
+</html>
